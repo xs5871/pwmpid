@@ -1,0 +1,26 @@
+name: Shellcheck
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - pwmpid
+  push:
+    branches:
+      - main
+    paths:
+      - pwmpid
+
+jobs:
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          additional_files:
+            - pwmpid
+          env:
+            SHELLCHECKOPTS: -x

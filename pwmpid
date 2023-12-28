@@ -1,0 +1,123 @@
+#!/bin/sh
+#
+# A simple PID controller for PMW devices.
+
+CONTROL_KP=300
+CONTROL_KI=0
+CONTROL_KD=0
+CONTROL_SP=50000
+CONTROL_MAX_INTEGRAL=500000
+INPUT_PATH=/sys/class/hwmon/hwmon0/temp0_input
+INPUT_WEIGHT=400
+OUTPUT_PERIOD=10000000
+OUTPUT_POLARITY=normal
+OUTPUT_MIN=1400000
+OUTPUT_MAX=$OUTPUT_PERIOD
+OUTPUT_DIVISOR=1
+UPDATE_INTERVAL=1
+DEBUG=0
+
+# internal
+control=0
+error_p=0
+error_i=0
+error_d=0
+output=0
+process_value=0
+process_value_last=0
+SELF=$(basename "$0")
+
+
+usage() {
+    echo "\
+Usage: $SELF CHIP-CHANNEL
+Run a PID controller for the PWM chip/channel at /sys/class/pwm/CHIP/CHANNEL.
+"
+}
+
+
+init() {
+    # setup pwm device
+    OUTPUT_PATH=/sys/class/pwm/"${INSTANCE%-*}"/"${INSTANCE#*-}"
+    if [ ! -e "$OUTPUT_PATH" ]; then
+        echo "${OUTPUT_PATH##*pwm}" > "$(dirname "$OUTPUT_PATH")"/export
+    fi
+    echo "$OUTPUT_PERIOD" > "$OUTPUT_PATH"/period
+    echo "$OUTPUT_POLARITY" > "$OUTPUT_PATH"/polarity
+    echo 1 > "$OUTPUT_PATH"/enable
+
+    # initialize averaging variables
+    process_value=$(cat "$INPUT_PATH")
+    process_value_last=$process_value
+}
+
+
+update() {
+    # read and smoothen input value
+    input=$(cat "$INPUT_PATH")
+    process_value_last=$process_value
+    process_value=$(((INPUT_WEIGHT*input + (1000-INPUT_WEIGHT)*process_value)/1000))
+
+    # calculate error and control values
+    error_p=$(( process_value - CONTROL_SP ))
+
+    error_i=$(( error_p + error_i ))
+    if [ "$error_i" -gt "$CONTROL_MAX_INTEGRAL" ]; then
+        error_i=$CONTROL_MAX_INTEGRAL
+    elif [ "$error_i" -lt -"$CONTROL_MAX_INTEGRAL" ]; then
+        error_i=-$CONTROL_MAX_INTEGRAL
+    fi
+
+    error_d=$((process_value_last - process_value))
+
+    control=$((CONTROL_KP*error_p + CONTROL_KI*error_i + CONTROL_KD*error_d))
+
+    # output value conditioning
+    output=$(( control / OUTPUT_DIVISOR ))
+    if [ "$output" -le 0 ]; then
+        output=0
+    elif [ "$output" -lt "$OUTPUT_MIN" ]; then
+        output=$OUTPUT_MIN
+    elif [ "$output" -gt "$OUTPUT_MAX" ]; then
+        output=$OUTPUT_MAX
+    fi
+
+    # write output value
+    echo "$output" > "$OUTPUT_PATH"/duty_cycle
+}
+
+
+print_debug_header () {
+    printf "%8s %8s %8s %8s %8s %8s %8s\n" IN PV EP EI ED CV OV
+}
+
+
+print_debug() {
+    printf "%8d %8d %8d %8d %8d %8d %8d\n" \
+        "$input" "$process_value" "$error_p" "$error_i" "$error_d" "$control" "$output"
+}
+
+
+main() {
+    INSTANCE=$1
+    if [ -z "$INSTANCE" ]; then
+        usage
+        exit 1
+    fi
+
+    # shellcheck source=pwmpid.conf.defaults
+    . /etc/pwmpid/"$INSTANCE".conf
+
+    init
+
+    [ "$DEBUG" -ne 0 ] && print_debug_header
+
+    while true; do
+        update
+        [ "$DEBUG" -ne 0 ] && print_debug
+        sleep "$UPDATE_INTERVAL"
+    done
+}
+
+
+main "$@"

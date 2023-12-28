@@ -1,0 +1,13 @@
+[Unit]
+Description=PID control for PWM devices
+Before=sysinit.target shutdown.target
+ConditionPathExists=|/etc/pwmpid/%i.conf
+DefaultDependencies=no
+
+[Service]
+Type=simple
+Restart=always
+ExecStart=/usr/local/bin/pwmpid %i
+
+[Install]
+WantedBy=sysinit.target

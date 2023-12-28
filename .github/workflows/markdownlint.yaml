@@ -1,0 +1,23 @@
+name: Markdownlint
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - **.md
+  push:
+    branches:
+      - main
+    paths:
+      - **.md
+
+jobs:
+  markdownlint:
+    name: Markdownlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: markdownlint-cli
+        uses: nosborn/github-action-markdown-cli@v3.3.0
+        with:
+          files: .
+          # config_file: .markdownlint.yaml

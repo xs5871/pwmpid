@@ -1,0 +1,43 @@
+# Weight for the proportional term in 1/1000.
+CONTROL_KP=300
+
+# Weight for the integral term in 1/1000.
+CONTROL_KI=0
+
+# Weight for the differential term in 1/1000.
+CONTROL_KD=0
+
+# Set point for the PID input in 1/1000 °C (same unit as the temperature input).
+CONTROL_SP=50000
+
+# Maximum absolute value for the integral error.
+CONTROL_MAX_INTEGRAL=500000
+
+# Source of the controller input value.
+INPUT_PATH=/sys/class/hwmon/hwmon0/temp0_input
+
+# Weight of new input values in the moving average in 1/1000.
+INPUT_WEIGHT=400
+
+# The amount the output value is scaled down by.
+OUTPUT_DIVISOR=1
+
+# Length of the PWM period in nanoseconds.
+OUTPUT_PERIOD=10000000
+
+# Polarity of the PWM output signal (normal/inverted).
+OUTPUT_POLARITY=normal
+
+# Minimum duty cycle of the PMM device in nanoseconds if the process value is
+# positive.
+OUTPUT_MIN=1400000
+
+# Minimum duty cycle of the PMM device in nanoseconds.
+OUTPUT_MAX=$OUTPUT_PERIOD
+
+# Interval the control loop is executed in seconds.
+UPDATE_INTERVAL=1
+
+# 0: No output. Otherwise print the control values, for example for tuning the
+# PID controller.
+DEBUG=0
